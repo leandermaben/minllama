@@ -58,8 +58,8 @@ class AdamW(Optimizer):
                 alpha_t = alpha * (1 - betas[1] ** state["t"]) ** 0.5 / (1 - betas[0] ** state["t"])
 
                 # Update parameters
-                p.data = p.data - alpha_t * state["m"] / (torch.sqrt(state["v"]) + group["eps"])
+                p.data = p.data - (alpha_t * state["m"] / (torch.sqrt(state["v"]) + group["eps"])+alpha * group["weight_decay"] * p.data)
                 # Add weight decay after the main gradient-based updates.
                 # Please note that the learning rate should be incorporated into this update.
-                p.data = p.data - alpha * group["weight_decay"] * p.data
+                # p.data = p.data - alpha * group["weight_decay"] * p.data
         return loss

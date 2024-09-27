@@ -61,6 +61,25 @@ class RMSNorm(torch.nn.Module):
         output = self._norm(x.float()).type_as(x)
         return output * self.weight
 
+class LoraLayer(nn.Module):
+    def __init__(self, in_dims, out_dims, rank=16, alpha=16):
+        super().__init__()
+        self.in_dims = in_dims
+        self.out_dims = out_dims
+        self.rank = rank
+        self.alpha=alpha
+        self.A = nn.Parameter(torch.zeros((in_dims,rank)))
+        self.B = nn.Parameter(torch.zeros((rank, out_dims)))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.zeros_(self.A)
+        nn.init.normal_(self.B)
+
+    def forward(self,x):
+        return (x@self.A@self.B)*self.alpha/self.rank**0.5
+
+
 class Attention(nn.Module):
     def __init__(self, config: LlamaConfig):
         super().__init__()
@@ -75,6 +94,12 @@ class Attention(nn.Module):
         self.compute_query = nn.Linear(config.dim, config.n_heads * self.head_dim, bias=False)
         self.compute_key = nn.Linear(config.dim, self.n_kv_heads * self.head_dim, bias=False)
         self.compute_value = nn.Linear(config.dim, self.n_kv_heads * self.head_dim, bias=False)
+        self.use_lora = config.use_lora
+        if config.use_lora:
+            print("Using LORA")
+            self.lora_query = LoraLayer(config.dim, config.n_heads * self.head_dim)
+            self.lora_key = LoraLayer(config.dim, self.n_kv_heads * self.head_dim)
+            self.lora_value = LoraLayer(config.dim, self.n_kv_heads * self.head_dim)
         self.compute_output = nn.Linear(config.n_heads * self.head_dim, config.dim, bias=False)
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
@@ -119,6 +144,10 @@ class Attention(nn.Module):
         query = self.compute_query(x)
         key = self.compute_key(x)
         value = self.compute_value(x)
+        if self.use_lora:
+            query = query + self.lora_query(x)
+            key = key + self.lora_key(x)
+            value = value + self.lora_value(x)
         query = query.view(batch_size, seqlen, self.n_local_heads, self.head_dim)
         key = key.view(batch_size, seqlen, self.n_local_kv_heads, self.head_dim)
         value = value.view(batch_size, seqlen, self.n_local_kv_heads, self.head_dim)

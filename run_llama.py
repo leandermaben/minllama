@@ -151,7 +151,8 @@ def train(args):
 			  'pretrained_model_path': args.pretrained_model_path,
 			  'num_labels': num_labels,
 			  'data_dir': '.',
-			  'option': args.option}
+			  'option': args.option,
+			  'use_lora': True}
 
 	config = SimpleNamespace(**config)
 
@@ -311,6 +312,7 @@ def get_args():
 						help='prompt: the Llama parameters are frozen; finetune: Llama parameters are updated',
 						choices=('generate', 'prompt', 'finetune'), default="generate")
 	parser.add_argument("--use_gpu", action='store_true')
+	#parser.add_argument("--mac", action='store_true')
 	parser.add_argument("--generated_sentence_low_temp_out", type=str, default="generated-sentence-temp-0.txt")
 	parser.add_argument("--generated_sentence_high_temp_out", type=str, default="generated-sentence-temp-1.txt")
 	parser.add_argument("--dev_out", type=str, default="cfimdb-dev-prompting-output.txt")
